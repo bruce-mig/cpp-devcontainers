@@ -30,8 +30,8 @@ A production-ready, optimized C++ development container with comprehensive tooli
 
 | Image Tag | Size | Use Case |
 |-----------|------|----------|
-| `latest-runtime` | ~800MB | Production builds, CI/CD pipelines |
-| `latest-development` | ~1.2GB | Full development environment |
+| `latest-runtime` | ~520MB | Production builds, CI/CD pipelines |
+| `latest-development` | ~760MB | Full development environment |
 
 ## 🛠️ Quick Start
 
@@ -48,6 +48,9 @@ docker run -it --rm \
 ```
 
 ### Using VS Code Dev Containers
+
+> [!NOTE]
+> See example devcontainer.json for usage.
 
 1. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 2. Clone this repository
