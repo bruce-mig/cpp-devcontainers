@@ -1,0 +1,111 @@
+services:
+  # Development container with full tooling
+  cpp-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+      args:
+        - BUILD_JOBS=8
+        - USERNAME=developer
+        - USER_UID=1000
+        - USER_GID=1000
+      cache_from:
+        - type=registry,ref=your-username/cpp-dev:buildcache-development
+      cache_to:
+        - type=registry,ref=your-username/cpp-dev:buildcache-development,mode=max
+    image: cpp-dev:development
+    container_name: cpp-dev-workspace
+    
+    # Capabilities for debugging
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    
+    # Mount source code
+    volumes:
+      - ./:/workspace:cached
+      - cpp-dev-cache:/home/developer/.cache
+      - cpp-dev-vscode:/home/developer/.vscode-server
+    
+    working_dir: /workspace
+    
+    # Keep container running
+    command: sleep infinity
+    
+    # Environment variables
+    environment:
+      - CMAKE_EXPORT_COMPILE_COMMANDS=1
+      - TERM=xterm-256color
+    
+    # Network for service communication
+    networks:
+      - cpp-dev-network
+    
+    # Resource limits (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 2G
+
+  # Lightweight runtime container for testing
+  cpp-runtime:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        - BUILD_JOBS=8
+    image: cpp-dev:runtime
+    container_name: cpp-runtime-test
+    
+    volumes:
+      - ./:/workspace:ro  # Read-only mount for testing
+    
+    working_dir: /workspace
+    command: sleep infinity
+    
+    networks:
+      - cpp-dev-network
+
+  # Example gRPC server for testing
+  grpc-server:
+    image: cpp-dev:runtime
+    container_name: cpp-grpc-server
+    
+    volumes:
+      - ./examples:/workspace:ro
+    
+    working_dir: /workspace
+    
+    # Override command to run your gRPC server
+    command: /workspace/build/server
+    
+    ports:
+      - "50051:50051"
+    
+    networks:
+      - cpp-dev-network
+    
+    depends_on:
+      - cpp-dev
+
+networks:
+  cpp-dev-network:
+    driver: bridge
+    name: cpp-dev-network
+
+volumes:
+  # Persistent cache for faster builds
+  cpp-dev-cache:
+    name: cpp-dev-cache
+  
+  # VS Code server extensions
+  cpp-dev-vscode:
+    name: cpp-dev-vscode

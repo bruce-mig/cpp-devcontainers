@@ -1,0 +1,90 @@
+{
+   "name": "C++ Development Container",
+   "build": {
+      "dockerfile": "Dockerfile",
+      "target": "development",
+      "args": {
+         "BUILD_JOBS": "8"
+      },
+      "context": "."
+   },
+   // Use pre-built image (faster startup)
+   // "image": "your-username/cpp-dev:latest-development",
+   "runArgs": [
+      "--cap-add=SYS_PTRACE",
+      "--security-opt=seccomp=unconfined",
+      "--security-opt=apparmor=unconfined"
+   ],
+   "containerEnv": {
+      "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+   },
+   "remoteUser": "developer",
+   "mounts": [
+      "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+      "source=cpp-dev-extensions,target=/home/developer/.vscode-server/extensions,type=volume",
+      "source=cpp-dev-cache,target=/home/developer/.cache,type=volume"
+   ],
+   "workspaceFolder": "/workspace",
+   "customizations": {
+      "vscode": {
+         "extensions": [
+            "ms-vscode.cpptools",
+            "ms-vscode.cmake-tools",
+            "twxs.cmake",
+            "ms-vscode.cpptools-extension-pack",
+            "xaver.clang-format",
+            "notskm.clang-tidy",
+            "cschlosser.doxdocgen",
+            "jeff-hykin.better-cpp-syntax",
+            "vadimcn.vscode-lldb",
+            "aaron-bond.better-comments",
+            "streetsidesoftware.code-spell-checker"
+         ],
+         "settings": {
+            "cmake.configureOnOpen": false,
+            "cmake.additionalKits": [
+               "/opt/toolchains/cmake-kits.json"
+            ],
+            "cmake.preferredGenerators": [
+               "Ninja"
+            ],
+            "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+            "C_Cpp.intelliSenseEngine": "default",
+            "C_Cpp.errorSquiggles": "enabled",
+            "clang-format.executable": "/usr/bin/clang-format",
+            "clang-tidy.executable": "/usr/bin/clang-tidy",
+            "files.associations": {
+               "*.h": "cpp",
+               "*.tcc": "cpp"
+            },
+            "editor.formatOnSave": true,
+            "editor.tabSize": 2,
+            "editor.insertSpaces": true,
+            "terminal.integrated.defaultProfile.linux": "bash",
+            "terminal.integrated.profiles.linux": {
+               "bash": {
+                  "path": "/bin/bash",
+                  "icon": "terminal-bash"
+               }
+            }
+         }
+      }
+   },
+   "features": {
+      "ghcr.io/devcontainers/features/git:1": {
+         "version": "latest"
+      },
+      "ghcr.io/devcontainers/features/github-cli:1": {
+         "version": "latest"
+      }
+   },
+   "postCreateCommand": "bash -c 'echo \"Welcome to C++ Development Container!\" && g++ --version && cmake --version'",
+   "postStartCommand": "",
+   "forwardPorts": [],
+   "portsAttributes": {
+      "8080": {
+         "label": "Application",
+         "onAutoForward": "notify"
+      }
+   }
+}

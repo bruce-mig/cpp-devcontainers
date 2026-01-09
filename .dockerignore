@@ -1,0 +1,64 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+.github
+
+# Documentation
+README.md
+LICENSE
+*.md
+docs/
+
+# CI/CD
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+build/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+# Test files
+test/
+tests/
+*_test.cpp
+*_test.h
+
+# Package managers
+node_modules/
+.npm/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# Docker files (except Dockerfile)
+docker-compose*.yml
+*.dockerfile
+!Dockerfile
+
+# Build scripts (keep only what's needed)
+!build_push.sh
