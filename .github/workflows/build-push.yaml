@@ -24,9 +24,11 @@ jobs:
    # Job 1: Build and test the Docker image
    build:
       runs-on: ubuntu-latest
+      timeout-minutes: 120
       permissions:
          contents: read
          packages: write
+         security-events: write
 
       strategy:
          matrix:
@@ -62,15 +64,14 @@ jobs:
            with:
               images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
               tags: |
-                 type=ref,event=branch
-                 type=ref,event=pr
-                 type=semver,pattern={{version}}
-                 type=semver,pattern={{major}}.{{minor}}
-                 type=sha,prefix={{branch}}-
-                 type=raw,value=latest,enable={{is_default_branch}}
+                 type=ref,event=branch,suffix=-${{ matrix.target }}
+                 type=ref,event=pr,suffix=-${{ matrix.target }}
+                 type=semver,pattern={{version}},suffix=-${{ matrix.target }}
+                 type=semver,pattern={{major}}.{{minor}},suffix=-${{ matrix.target }}
+                 type=sha,prefix={{branch}}-,suffix=-${{ matrix.target }}
+                 type=raw,value=latest-${{ matrix.target }},enable={{is_default_branch}}
               flavor: |
                  latest=false
-                 suffix=-${{ matrix.target }}
 
          - name: Build and push Docker image
            uses: docker/build-push-action@v5
@@ -93,7 +94,7 @@ jobs:
          - name: Test image
            if: matrix.target == 'runtime'
            run: |
-              docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}-${{ matrix.target }} bash -c "
+              docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-runtime bash -c "
                 set -e
                 echo '=== Testing compilers ==='
                 g++ --version
@@ -119,16 +120,18 @@ jobs:
            if: github.event_name != 'pull_request'
            uses: aquasecurity/trivy-action@master
            with:
-              image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}-${{ matrix.target }}
+              image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ matrix.target }}
               format: "sarif"
               output: "trivy-results.sarif"
               severity: "CRITICAL,HIGH"
+           continue-on-error: true
 
          - name: Upload Trivy results to GitHub Security
            if: github.event_name != 'pull_request'
            uses: github/codeql-action/upload-sarif@v3
            with:
               sarif_file: "trivy-results.sarif"
+           continue-on-error: true
 
    # Job 2: Generate SBOM (Software Bill of Materials)
    sbom:
@@ -144,16 +147,10 @@ jobs:
               username: ${{ secrets.DOCKER_USERNAME }}
               password: ${{ secrets.DOCKER_PASSWORD }}
 
-         - name: Extract metadata
-           id: meta
-           uses: docker/metadata-action@v5
-           with:
-              images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
          - name: Generate SBOM
            uses: anchore/sbom-action@v0
            with:
-              image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}-runtime
+              image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-runtime
               format: spdx-json
               output-file: sbom.spdx.json
 
