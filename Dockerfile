@@ -101,14 +101,13 @@ FROM base-builder AS pcl-builder
 ARG PCL_VERSION=pcl-1.14.1
 ENV PCL_INSTALL_PREFIX=/opt/pcl
 
-# Install PCL dependencies
+# Install PCL dependencies (without visualization)
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
    --mount=type=cache,target=/var/lib/apt,sharing=locked \
    apt-get update && apt-get install -y --no-install-recommends \
    libboost-all-dev \
    libeigen3-dev \
    libflann-dev \
-   libvtk9-dev \
    libqhull-dev \
    libusb-1.0-0-dev \
    && rm -rf /var/lib/apt/lists/*
@@ -128,6 +127,10 @@ RUN cmake .. \
    -DBUILD_examples=OFF \
    -DBUILD_tools=OFF \
    -DBUILD_apps=OFF \
+   -DBUILD_visualization=OFF \
+   -DPCL_BUILD_WITH_BOOST_DYNAMIC_LINKING_WIN32=OFF \
+   -DWITH_OPENGL=OFF \
+   -DWITH_QT=OFF \
    && ninja install \
    && rm -rf /tmp/pcl
 
@@ -156,7 +159,7 @@ COPY toolchains/ /opt/toolchains/
 FROM ubuntu:22.04 AS runtime
 
 # Metadata labels
-LABEL maintainer="your-email@example.com"
+LABEL maintainer="bmigeri@gmail.com"
 LABEL description="Optimized C++ Development Container with cross-compilation support"
 LABEL version="1.0"
 
@@ -189,14 +192,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
    # Runtime libraries for gRPC
    libssl3 \
    zlib1g \
-   # Runtime libraries for PCL
+   # Runtime libraries for PCL (without visualization)
    libboost-system1.74.0 \
    libboost-filesystem1.74.0 \
    libboost-iostreams1.74.0 \
    libboost-thread1.74.0 \
    libeigen3-dev \
    libflann1.9 \
-   libvtk9.1 \
    libqhull8.0 \
    # Utilities
    curl \
@@ -284,7 +286,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
    iwyu \
    && rm -rf /var/lib/apt/lists/*
 
-# Install modern CMake (optional, if you need latest version)
+# Install latest CMake
 ARG CMAKE_VERSION=4.2.1
 RUN wget -qO- "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz" | \
    tar --strip-components=1 -xz -C /usr/local
