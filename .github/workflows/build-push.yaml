@@ -3,10 +3,18 @@ name: Build and Push C++ Dev Container
 on:
    push:
       branches: [main, develop]
+      paths:
+         - "Dockerfile"
+         - "toolchains/**"
+         - ".github/workflows/build-push.yml"
       tags:
          - "v*"
    pull_request:
       branches: [main]
+      paths:
+         - "Dockerfile"
+         - "toolchains/**"
+         - ".github/workflows/build-push.yml"
    workflow_dispatch:
       inputs:
          push_image:
@@ -177,3 +185,4 @@ jobs:
               password: ${{ secrets.DOCKER_PASSWORD }}
               repository: ${{ env.IMAGE_NAME }}
               readme-filepath: ./README.md
+           continue-on-error: true
