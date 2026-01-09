@@ -146,74 +146,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
    g++-aarch64-linux-gnu \
    && rm -rf /var/lib/apt/lists/*
 
-# Create toolchain files
-RUN mkdir -p /opt/toolchains
-
-# ARM 32-bit toolchain
-RUN cat > /opt/toolchains/arm-linux-gnueabihf.cmake << 'EOF'
-set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR arm)
-
-set(CMAKE_C_COMPILER arm-linux-gnueabihf-gcc)
-set(CMAKE_CXX_COMPILER arm-linux-gnueabihf-g++)
-
-set(CMAKE_FIND_ROOT_PATH /usr/arm-linux-gnueabihf)
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-EOF
-
-# ARM 64-bit toolchain
-RUN cat > /opt/toolchains/aarch64-linux-gnu.cmake << 'EOF'
-set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR aarch64)
-
-set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
-set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
-
-set(CMAKE_FIND_ROOT_PATH /usr/aarch64-linux-gnu)
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-EOF
-
-# CMake kits configuration for VS Code
-RUN cat > /opt/toolchains/cmake-kits.json << 'EOF'
-[
-{
-"name": "GCC x86_64",
-"compilers": {
-"C": "/usr/bin/gcc",
-"CXX": "/usr/bin/g++"
-},
-"preferredGenerator": {
-"name": "Ninja"
-}
-},
-{
-"name": "GCC ARM 32-bit (armhf)",
-"compilers": {
-"C": "/usr/bin/arm-linux-gnueabihf-gcc",
-"CXX": "/usr/bin/arm-linux-gnueabihf-g++"
-},
-"toolchainFile": "/opt/toolchains/arm-linux-gnueabihf.cmake",
-"preferredGenerator": {
-"name": "Ninja"
-}
-},
-{
-"name": "GCC ARM 64-bit (aarch64)",
-"compilers": {
-"C": "/usr/bin/aarch64-linux-gnu-gcc",
-"CXX": "/usr/bin/aarch64-linux-gnu-g++"
-},
-"toolchainFile": "/opt/toolchains/aarch64-linux-gnu.cmake",
-"preferredGenerator": {
-"name": "Ninja"
-}
-}
-]
-EOF
+# Copy toolchain files from local directory
+# These files should be created in the toolchains/ directory of your repository
+COPY toolchains/ /opt/toolchains/
 
 # ------------------------------------------------------------------------------
 # Stage 6: Final runtime image (slim)
@@ -221,7 +156,7 @@ EOF
 FROM ubuntu:22.04 AS runtime
 
 # Metadata labels
-LABEL maintainer="bmigeri@gmail.com"
+LABEL maintainer="your-email@example.com"
 LABEL description="Optimized C++ Development Container with cross-compilation support"
 LABEL version="1.0"
 
