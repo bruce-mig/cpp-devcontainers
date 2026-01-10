@@ -30,8 +30,8 @@ A production-ready, optimized C++ development container with comprehensive tooli
 
 | Image Tag | Size | Use Case |
 |-----------|------|----------|
-| `latest-runtime` | ~520MB | Production builds, CI/CD pipelines |
-| `latest-development` | ~760MB | Full development environment |
+| `latest-runtime` | ~850MB | Production builds, CI/CD pipelines |
+| `latest-development` | ~1.07GB | Full development environment |
 
 ## 🛠️ Quick Start
 
@@ -270,8 +270,8 @@ This Dockerfile uses several optimization techniques:
 make size
 
 # Expected results:
-# runtime:      ~800MB
-# development: ~1.2GB
+# runtime:      ~850MB
+# development: ~1.07GB
 ```
 
 ## 🐛 Troubleshooting
