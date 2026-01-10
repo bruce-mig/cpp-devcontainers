@@ -50,7 +50,7 @@ docker run -it --rm \
 ### Using VS Code Dev Containers
 
 > [!NOTE]
-> See example devcontainer.json for usage.
+> See example `devcontainer.json` for usage.
 
 1. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 2. Clone this repository
