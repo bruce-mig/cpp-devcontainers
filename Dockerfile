@@ -39,13 +39,13 @@ ENV MAKEFLAGS="-j${BUILD_JOBS}"
 # ------------------------------------------------------------------------------
 FROM base-builder AS grpc-builder
 
-ARG GRPC_VERSION=v1.62.0
+ARG GRPC_VERSION=v1.76.0
 ENV GRPC_INSTALL_PREFIX=/opt/grpc
 
 WORKDIR /tmp/grpc
 
 # Clone with shallow depth to save space and time
-RUN git clone --recurse-submodules --depth 1 --branch ${GRPC_VERSION} \
+RUN git clone --recurse-submodules --depth 1 --shallow-submodules --branch ${GRPC_VERSION} \
    https://github.com/grpc/grpc.git . && \
    mkdir -p cmake/build
 
@@ -56,6 +56,7 @@ RUN cmake ../.. \
    -GNinja \
    -DCMAKE_BUILD_TYPE=Release \
    -DCMAKE_INSTALL_PREFIX=${GRPC_INSTALL_PREFIX} \
+   -DCMAKE_CXX_STANDARD=17 \
    -DgRPC_INSTALL=ON \
    -DgRPC_BUILD_TESTS=OFF \
    -DgRPC_BUILD_CSHARP_EXT=OFF \
@@ -181,6 +182,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
    valgrind \
    strace \
    # Code quality tools
+   clangd \
    clang-format \
    clang-tidy \
    cppcheck \
@@ -206,6 +208,14 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
    vim \
    nano \
    bash-completion \
+   # Miscellaneous
+   gcc-arm-none-eabi \
+   libnanoflann-dev \
+   libjsoncpp-dev \
+   libgtest-dev \
+   libgmock-dev \
+   libi2c-dev \
+   plantuml \
    && rm -rf /var/lib/apt/lists/*
 
 # Copy compiled libraries from build stages
@@ -284,6 +294,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
    # Static analysis
    clang-tools \
    iwyu \
+   # Misc utilities
    && rm -rf /var/lib/apt/lists/*
 
 # Install latest CMake
