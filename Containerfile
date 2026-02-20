@@ -245,7 +245,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
    python3 \
    python3-pip \
    # Network tools
-   netcat \
+   netcat-openbsd \
    iputils-ping \
    # Static analysis
    iwyu \
