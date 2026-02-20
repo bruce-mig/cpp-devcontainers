@@ -2,7 +2,7 @@
 
 **A production-ready, multi-stage OCI container image for C++ development — with native and cross-compilation toolchains, gRPC, GoogleTest, and a complete VS Code Dev Container configuration.**
 
-[![CI](https://github.com/bmigeri/cpp-devcontainers/actions/workflows/build-push.yaml/badge.svg)](https://github.com/bmigeri/cpp-devcontainers/actions/workflows/build-push.yaml)
+[![CI](https://github.com/bruce-mig/cpp-devcontainers/actions/workflows/build-push.yaml/badge.svg)](https://github.com/bruce-mig/cpp-devcontainers/actions/workflows/build-push.yaml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/bmigeri/devcon-cpp)](https://hub.docker.com/r/bmigeri/devcon-cpp)
 [![Image Size](https://img.shields.io/docker/image-size/bmigeri/devcon-cpp/latest-runtime)](https://hub.docker.com/r/bmigeri/devcon-cpp)
 [![Ubuntu 24.04](https://img.shields.io/badge/Ubuntu-24.04%20LTS-orange)](https://hub.docker.com/_/ubuntu)
