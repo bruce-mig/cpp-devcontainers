@@ -2,7 +2,7 @@
 # Simplifies common Docker operations
 
 # Variables
-IMAGE_NAME ?= cpp-dev
+IMAGE_NAME ?= devcon-cpp
 REGISTRY ?= docker.io
 USERNAME ?= bmigeri
 TAG ?= latest
@@ -12,7 +12,7 @@ BUILD_JOBS ?= $(shell nproc)
 
 FULL_IMAGE_NAME = $(REGISTRY)/$(USERNAME)/$(IMAGE_NAME):$(TAG)-$(TARGET)
 
-.PHONY: help build build-dev build-all push pull test clean run shell lint
+.PHONY: help build build-dev build-slim build-dev-slim build-all push pull test clean run shell lint
 
 # Default target
 help:
@@ -22,7 +22,9 @@ help:
 	@echo "Building:"
 	@echo "  make build          - Build runtime image (production)"
 	@echo "  make build-dev      - Build development image (with extra tools)"
-	@echo "  make build-all      - Build both runtime and development images"
+	@echo "  make build-slim     - Build runtime-slim image (no gRPC)"
+	@echo "  make build-dev-slim - Build development-slim image (no gRPC)"
+	@echo "  make build-all      - Build all 4 image variants"
 	@echo ""
 	@echo "Docker Registry:"
 	@echo "  make push           - Push image to registry"
@@ -30,7 +32,7 @@ help:
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test           - Run image validation tests"
-	@echo "  make lint           - Lint Dockerfile"
+	@echo "  make lint           - Lint Containerfile"
 	@echo ""
 	@echo "Running:"
 	@echo "  make run            - Run container with workspace mounted"
@@ -63,9 +65,17 @@ build:
 build-dev:
 	@$(MAKE) build TARGET=development
 
+build-slim:  ## Build runtime-slim image (no gRPC)
+	@$(MAKE) build TARGET=runtime-slim
+
+build-dev-slim:  ## Build development-slim image (no gRPC)
+	@$(MAKE) build TARGET=development-slim
+
 build-all:
 	@$(MAKE) build TARGET=runtime
 	@$(MAKE) build TARGET=development
+	@$(MAKE) build TARGET=runtime-slim
+	@$(MAKE) build TARGET=development-slim
 
 # Build with cache optimization
 build-cached:
@@ -105,7 +115,7 @@ run:
 	docker run -it --rm \
 		-v $(PWD):/workspace \
 		-v cpp-dev-cache:/home/developer/.cache \
-		--name cpp-dev-container \
+		--name devcon-cpp-container \
 		$(FULL_IMAGE_NAME)
 
 # Interactive shell
@@ -113,7 +123,7 @@ shell:
 	docker run -it --rm \
 		-v $(PWD):/workspace \
 		-v cpp-dev-cache:/home/developer/.cache \
-		--name cpp-dev-shell \
+		--name devcon-cpp-shell \
 		$(FULL_IMAGE_NAME) \
 		/bin/bash
 
@@ -164,12 +174,12 @@ test-compile:
 		echo '✓ Compilation test passed!' \
 	"
 
-# Lint Dockerfile
+# Lint Containerfile
 lint:
 	@if command -v hadolint >/dev/null 2>&1; then \
-		hadolint Dockerfile; \
+		hadolint Containerfile; \
 	else \
-		docker run --rm -i hadolint/hadolint < Dockerfile; \
+		docker run --rm -i hadolint/hadolint < Containerfile; \
 	fi
 
 # Security scan
@@ -195,7 +205,9 @@ inspect: build
 clean:
 	@echo "Removing local images..."
 	-docker rmi $(REGISTRY)/$(USERNAME)/$(IMAGE_NAME):$(TAG)-runtime 2>/dev/null || true
+	-docker rmi $(REGISTRY)/$(USERNAME)/$(IMAGE_NAME):$(TAG)-runtime-slim 2>/dev/null || true
 	-docker rmi $(REGISTRY)/$(USERNAME)/$(IMAGE_NAME):$(TAG)-development 2>/dev/null || true
+	-docker rmi $(REGISTRY)/$(USERNAME)/$(IMAGE_NAME):$(TAG)-development-slim 2>/dev/null || true
 	@echo "Cleaning build cache..."
 	docker builder prune -f
 
@@ -210,19 +222,19 @@ prune:
 
 # Show container logs
 logs:
-	docker logs cpp-dev-container
+	docker logs devcon-cpp-container
 
 # Export image to tar
 export:
 	@echo "Exporting $(FULL_IMAGE_NAME) to tar..."
-	docker save $(FULL_IMAGE_NAME) | gzip > cpp-dev-$(TAG)-$(TARGET).tar.gz
-	@echo "Exported to cpp-dev-$(TAG)-$(TARGET).tar.gz"
+	docker save $(FULL_IMAGE_NAME) | gzip > devcon-cpp-$(TAG)-$(TARGET).tar.gz
+	@echo "Exported to devcon-cpp-$(TAG)-$(TARGET).tar.gz"
 
 # Import image from tar
 import:
 	@echo "Importing image from tar..."
-	@if [ -f cpp-dev-$(TAG)-$(TARGET).tar.gz ]; then \
-		docker load < cpp-dev-$(TAG)-$(TARGET).tar.gz; \
+	@if [ -f devcon-cpp-$(TAG)-$(TARGET).tar.gz ]; then \
+		docker load < devcon-cpp-$(TAG)-$(TARGET).tar.gz; \
 	else \
-		echo "Error: cpp-dev-$(TAG)-$(TARGET).tar.gz not found"; \
+		echo "Error: devcon-cpp-$(TAG)-$(TARGET).tar.gz not found"; \
 	fi

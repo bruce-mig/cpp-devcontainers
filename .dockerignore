@@ -55,10 +55,11 @@ temp/
 *.tmp
 *.log
 
-# Docker files (except Dockerfile)
+# Container build files (except Containerfile)
 docker-compose*.yml
+docker-compose*.yaml
 *.dockerfile
-!Dockerfile
+!Containerfile
 
 # Build scripts (keep only what's needed)
 !build_push.sh
