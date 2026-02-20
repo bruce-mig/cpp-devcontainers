@@ -159,7 +159,7 @@ ENV PKG_CONFIG_PATH=/opt/gtest/lib/pkgconfig \
 
 # Create non-root user for development
 ARG USERNAME=developer
-ARG USER_UID=1000
+ARG USER_UID=1001
 ARG USER_GID=${USER_UID}
 
 RUN groupadd --gid ${USER_GID} ${USERNAME} \
