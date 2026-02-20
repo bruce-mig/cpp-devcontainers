@@ -259,7 +259,7 @@ ARG CMAKE_VERSION=4.2.1
 RUN set -eux; \
    ARCH="$(uname -m)"; \
    case "${ARCH}" in \
-   x86_64)  CMAKE_ARCH="linux-x86_64";  CMAKE_SHA256="5977a65f3edfb64743fc2e1b6554f1e51f4cf1b7338cf33953519ae71c8bcb17" ;; \
+   x86_64)  CMAKE_ARCH="linux-x86_64";  CMAKE_SHA256="c059bff1e97a2b6b5b0c0872263627486345ad0ed083298cb21cff2eda883980" ;; \
    aarch64) CMAKE_ARCH="linux-aarch64"; CMAKE_SHA256="3e178207a2c42af4cd4883127f8800b6faf99f3f5187dccc68bfb2cc7808f5f7" ;; \
    *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;; \
    esac; \
