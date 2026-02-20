@@ -1,6 +1,6 @@
 # devcon-cpp
 
-**A productiZimworX Victoria Falls Technology Center on-ready, multi-stage OCI container image for C++ development — with native and cross-compilation toolchains, gRPC, GoogleTest, and a complete VS Code Dev Container configuration.**
+**A production-ready, multi-stage OCI container image for C++ development — with native and cross-compilation toolchains, gRPC, GoogleTest, and a complete VS Code Dev Container configuration.**
 
 [![CI](https://github.com/bmigeri/cpp-devcontainers/actions/workflows/build-push.yaml/badge.svg)](https://github.com/bmigeri/cpp-devcontainers/actions/workflows/build-push.yaml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/bmigeri/devcon-cpp)](https://hub.docker.com/r/bmigeri/devcon-cpp)
