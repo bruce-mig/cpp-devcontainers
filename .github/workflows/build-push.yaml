@@ -105,7 +105,7 @@ jobs:
               cache-from: |
                  type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.target }}
                  type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.target }}
-              cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.target }},mode=max
+              cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}/{1}:buildcache-{2},mode=max', env.REGISTRY, env.IMAGE_NAME, matrix.target) || '' }}
               build-args: |
                  BUILD_JOBS=${{ env.BUILD_JOBS }}
                  BUILDKIT_INLINE_CACHE=1
