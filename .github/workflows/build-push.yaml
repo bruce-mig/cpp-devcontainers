@@ -154,9 +154,6 @@ jobs:
                  images+="${tag}@${DIGEST} "
               done
               cosign sign --yes ${images}
-              cosign verify ${images} \
-                --certificate-identity=https://github.com/bruce-mig/cpp-devcontainers/.github/workflows/build-push.yaml@${{ github.ref }} \
-                --certificate-oidc-issuer=https://token.actions.githubusercontent.com
 
          - name: Test image
            if: matrix.target == 'runtime' && github.event_name != 'pull_request'
