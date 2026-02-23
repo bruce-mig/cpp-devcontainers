@@ -111,7 +111,10 @@ jobs:
                  BUILDKIT_INLINE_CACHE=1
 
          - name: Sign Docker image with Cosign
-           if: github.event_name != 'pull_request' && (github.event.inputs.push_image != 'false')
+           if: >-
+              github.event_name != 'pull_request' &&
+              github.event.inputs.push_image != 'false' &&
+              steps.build-and-push.outputs.digest != ''
            env:
               DIGEST: ${{ steps.build-and-push.outputs.digest }}
               TAGS: ${{ steps.meta.outputs.tags }}
@@ -122,7 +125,7 @@ jobs:
               done
               cosign sign --yes ${images}
               cosign verify ${images} \
-                --certificate-identity=https://github.com/bruce-mig/cpp-devcontainers/.github/workflows/build-push.yaml@refs/heads/main \
+                --certificate-identity=https://github.com/bruce-mig/cpp-devcontainers/.github/workflows/build-push.yaml@${{ github.ref }} \
                 --certificate-oidc-issuer=https://token.actions.githubusercontent.com
 
          - name: Test image
