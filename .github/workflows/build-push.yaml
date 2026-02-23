@@ -33,9 +33,39 @@ concurrency:
    cancel-in-progress: true
 
 jobs:
+   # Job 0: Lightweight PR check — Trivy misconfiguration scan only
+   pr-check:
+      runs-on: ubuntu-latest
+      if: github.event_name == 'pull_request'
+      permissions:
+         contents: read
+         security-events: write
+
+      steps:
+         - name: Checkout repository
+           uses: actions/checkout@v4
+
+         - name: Scan Containerfile for misconfigurations
+           uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # v0.34.0
+           with:
+              scan-type: "config"
+              scan-ref: "."
+              format: "sarif"
+              output: "trivy-results.sarif"
+              severity: "CRITICAL,HIGH"
+              ignore-unfixed: true
+
+         - name: Upload Trivy results to GitHub Security
+           if: always()
+           uses: github/codeql-action/upload-sarif@v4
+           with:
+              sarif_file: "trivy-results.sarif"
+              category: "dockerfile-config"
+
    # Job 1: Build and test the Docker image
    build:
       runs-on: ubuntu-latest
+      if: github.event_name != 'pull_request'
       timeout-minutes: 120
       permissions:
          contents: write
@@ -165,18 +195,6 @@ jobs:
               output: "trivy-results.sarif"
               severity: "CRITICAL,HIGH"
               limit-severities-for-sarif: true
-
-         # On PR: scan Containerfile for misconfigurations
-         - name: Scan Containerfile for misconfigurations (PR)
-           if: github.event_name == 'pull_request'
-           uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # v0.34.0
-           with:
-              scan-type: "config"
-              ignore-unfixed: true
-              scan-ref: "."
-              format: "sarif"
-              output: "trivy-results.sarif"
-              severity: "CRITICAL,HIGH"
 
          - name: Upload Trivy results to GitHub Security
            if: >-
