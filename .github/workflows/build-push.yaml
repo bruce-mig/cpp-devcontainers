@@ -26,7 +26,7 @@ on:
 env:
    REGISTRY: docker.io
    IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/devcon-cpp
-   BUILD_JOBS: 8
+   BUILD_JOBS: 4
 
 concurrency:
    group: ${{ github.workflow }}-${{ github.ref }}
@@ -62,18 +62,146 @@ jobs:
               sarif_file: "trivy-results.sarif"
               category: "dockerfile-config"
 
-   # Job 1: Build and test the Docker image
-   build:
-      runs-on: ubuntu-latest
+   # Job 1a: Build amd64 images natively and push by digest
+   build-amd64:
+      runs-on: ubuntu-24.04
       if: github.event_name != 'pull_request'
-      timeout-minutes: 120
+      timeout-minutes: 60
+      permissions:
+         contents: read
+         packages: write
+         id-token: write
+
+      strategy:
+         matrix:
+            target: [runtime, runtime-slim, development, development-slim]
+
+      steps:
+         - name: Checkout repository
+           uses: actions/checkout@v4
+
+         - name: Set up Docker Buildx
+           uses: docker/setup-buildx-action@v3
+           with:
+              driver-opts: |
+                 image=moby/buildkit:v0.27.1
+                 network=host
+
+         - name: Log in to Docker Hub
+           uses: docker/login-action@v3
+           with:
+              registry: ${{ env.REGISTRY }}
+              username: ${{ secrets.DOCKER_USERNAME }}
+              password: ${{ secrets.DOCKER_PASSWORD }}
+
+         - name: Build and push by digest (amd64)
+           id: build
+           uses: docker/build-push-action@v6.18.0
+           with:
+              context: .
+              file: ./Containerfile
+              platforms: linux/amd64
+              target: ${{ matrix.target }}
+              provenance: true
+              sbom: true
+              outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+              cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.target }}-amd64
+              cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.target }}-amd64,mode=max
+              build-args: |
+                 BUILD_JOBS=${{ env.BUILD_JOBS }}
+                 BUILDKIT_INLINE_CACHE=1
+
+         - name: Export digest
+           run: |
+              mkdir -p /tmp/digests
+              digest="${{ steps.build.outputs.digest }}"
+              touch "/tmp/digests/${digest#sha256:}"
+
+         - name: Upload digest artifact
+           uses: actions/upload-artifact@v4
+           with:
+              name: digest-${{ matrix.target }}-amd64
+              path: /tmp/digests/*
+              if-no-files-found: error
+              retention-days: 1
+
+   # Job 1b: Build arm64 images natively and push by digest
+   build-arm64:
+      runs-on: ubuntu-24.04-arm
+      if: github.event_name != 'pull_request'
+      timeout-minutes: 60
+      permissions:
+         contents: read
+         packages: write
+         id-token: write
+
+      strategy:
+         matrix:
+            target: [runtime, runtime-slim, development, development-slim]
+
+      steps:
+         - name: Checkout repository
+           uses: actions/checkout@v4
+
+         - name: Set up Docker Buildx
+           uses: docker/setup-buildx-action@v3
+           with:
+              driver-opts: |
+                 image=moby/buildkit:v0.27.1
+                 network=host
+
+         - name: Log in to Docker Hub
+           uses: docker/login-action@v3
+           with:
+              registry: ${{ env.REGISTRY }}
+              username: ${{ secrets.DOCKER_USERNAME }}
+              password: ${{ secrets.DOCKER_PASSWORD }}
+
+         - name: Build and push by digest (arm64)
+           id: build
+           uses: docker/build-push-action@v6.18.0
+           with:
+              context: .
+              file: ./Containerfile
+              platforms: linux/arm64
+              target: ${{ matrix.target }}
+              provenance: true
+              sbom: true
+              outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+              cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.target }}-arm64
+              cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.target }}-arm64,mode=max
+              build-args: |
+                 BUILD_JOBS=${{ env.BUILD_JOBS }}
+                 BUILDKIT_INLINE_CACHE=1
+
+         - name: Export digest
+           run: |
+              mkdir -p /tmp/digests
+              digest="${{ steps.build.outputs.digest }}"
+              touch "/tmp/digests/${digest#sha256:}"
+
+         - name: Upload digest artifact
+           uses: actions/upload-artifact@v4
+           with:
+              name: digest-${{ matrix.target }}-arm64
+              path: /tmp/digests/*
+              if-no-files-found: error
+              retention-days: 1
+
+   # Job 2: Merge per-arch digests into multi-arch manifests, sign, test, scan
+   merge:
+      runs-on: ubuntu-24.04
+      if: github.event_name != 'pull_request'
+      needs: [build-amd64, build-arm64]
+      timeout-minutes: 20
       permissions:
          contents: write
          packages: write
          security-events: write
-         id-token: write # required for provenance attestation
+         id-token: write
 
       strategy:
+         fail-fast: false
          matrix:
             target: [runtime, runtime-slim, development, development-slim]
 
@@ -84,25 +212,27 @@ jobs:
          - name: Install Cosign
            uses: sigstore/cosign-installer@v4.0.0
 
-         - name: Set up QEMU
-           uses: docker/setup-qemu-action@v3
-           with:
-              platforms: linux/amd64,linux/arm64
-
          - name: Set up Docker Buildx
            uses: docker/setup-buildx-action@v3
-           with:
-              driver-opts: |
-                 image=moby/buildkit:v0.27.1
-                 network=host
 
          - name: Log in to Docker Hub
-           if: github.event_name != 'pull_request'
            uses: docker/login-action@v3
            with:
               registry: ${{ env.REGISTRY }}
               username: ${{ secrets.DOCKER_USERNAME }}
               password: ${{ secrets.DOCKER_PASSWORD }}
+
+         - name: Download amd64 digest
+           uses: actions/download-artifact@v4
+           with:
+              name: digest-${{ matrix.target }}-amd64
+              path: /tmp/digests
+
+         - name: Download arm64 digest
+           uses: actions/download-artifact@v4
+           with:
+              name: digest-${{ matrix.target }}-arm64
+              path: /tmp/digests
 
          - name: Extract metadata
            id: meta
@@ -119,34 +249,26 @@ jobs:
               flavor: |
                  latest=false
 
-         - name: Build and push Docker image
-           uses: docker/build-push-action@v6.18.0
-           id: build-and-push
-           with:
-              context: .
-              file: ./Containerfile
-              platforms: linux/amd64,linux/arm64
-              target: ${{ matrix.target }}
-              push: ${{ github.event_name != 'pull_request' && (github.event.inputs.push_image != 'false') }}
-              tags: ${{ steps.meta.outputs.tags }}
-              labels: ${{ steps.meta.outputs.labels }}
-              provenance: true
-              sbom: true
-              cache-from: |
-                 type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.target }}
-                 type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.target }}
-              cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}/{1}:buildcache-{2},mode=max', env.REGISTRY, env.IMAGE_NAME, matrix.target) || '' }}
-              build-args: |
-                 BUILD_JOBS=${{ env.BUILD_JOBS }}
-                 BUILDKIT_INLINE_CACHE=1
+         - name: Create multi-arch manifest
+           working-directory: /tmp/digests
+           run: |
+              docker buildx imagetools create \
+                $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+                $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+         - name: Get manifest digest
+           id: manifest-digest
+           run: |
+              IMAGE_TAG=$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+              DIGEST=$(docker buildx imagetools inspect "${IMAGE_TAG}" \
+                --format '{{json .}}' | jq -r '.manifest.digest')
+              echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
+              echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
          - name: Sign Docker image with Cosign
-           if: >-
-              github.event_name != 'pull_request' &&
-              github.event.inputs.push_image != 'false' &&
-              steps.build-and-push.outputs.digest != ''
+           if: github.event.inputs.push_image != 'false' && steps.manifest-digest.outputs.digest != ''
            env:
-              DIGEST: ${{ steps.build-and-push.outputs.digest }}
+              DIGEST: ${{ steps.manifest-digest.outputs.digest }}
               TAGS: ${{ steps.meta.outputs.tags }}
            run: |
               images=""
@@ -156,9 +278,9 @@ jobs:
               cosign sign --yes ${images}
 
          - name: Test image
-           if: matrix.target == 'runtime' && github.event_name != 'pull_request'
+           if: matrix.target == 'runtime'
            run: |
-              docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-runtime bash -c "
+              docker run --rm ${{ steps.manifest-digest.outputs.image_tag }} bash -c "
                 set -e
                 echo '=== Testing compilers ==='
                 g++ --version
@@ -180,15 +302,12 @@ jobs:
                 echo '=== All tests passed ==='
               "
 
-         # On push: scan the published image for CVEs
          - name: Scan image for vulnerabilities
-           if: github.event_name != 'pull_request'
            uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # v0.34.0
            with:
-              image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.target }}
+              image-ref: ${{ steps.manifest-digest.outputs.image_tag }}
               format: "sarif"
               ignore-unfixed: true
-              #   vuln-type: "os,library"
               output: "trivy-results.sarif"
               severity: "CRITICAL,HIGH"
               limit-severities-for-sarif: true
@@ -196,21 +315,20 @@ jobs:
          - name: Upload Trivy results to GitHub Security
            if: >-
               always() &&
-              github.event_name != 'pull_request' &&
               (matrix.target == 'runtime' || matrix.target == 'development')
            uses: github/codeql-action/upload-sarif@v4
            with:
               sarif_file: "trivy-results.sarif"
               category: ${{ matrix.target }}
 
-   # Job 2: Generate SBOM (Software Bill of Materials)
+   # Job 3: Generate SBOM (Software Bill of Materials)
    # Uses Syft (via anchore/sbom-action) as the authoritative SBOM generator —
    # it provides superior package detection accuracy over Trivy's secondary SBOM
-   # feature. Trivy remains dedicated to vulnerability scanning (Job 1).
+   # feature. Trivy remains dedicated to vulnerability scanning (Job 2).
    # Generates both SPDX-JSON (NIST/EO-14028) and CycloneDX-JSON (OWASP/SLSA).
    sbom:
       runs-on: ubuntu-latest
-      needs: build
+      needs: merge
       if: github.event_name != 'pull_request'
       strategy:
          matrix:
@@ -229,10 +347,29 @@ jobs:
               username: ${{ secrets.DOCKER_USERNAME }}
               password: ${{ secrets.DOCKER_PASSWORD }}
 
+         - name: Extract metadata
+           id: meta
+           uses: docker/metadata-action@v5
+           with:
+              images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+              tags: |
+                 type=ref,event=branch,suffix=-${{ matrix.target }}
+                 type=semver,pattern={{version}},suffix=-${{ matrix.target }}
+                 type=semver,pattern={{major}}.{{minor}},suffix=-${{ matrix.target }}
+                 type=sha,suffix=-${{ matrix.target }}
+                 type=raw,value=latest-${{ matrix.target }},enable={{is_default_branch}}
+              flavor: |
+                 latest=false
+
+         - name: Resolve image tag
+           id: image-ref
+           run: |
+              echo "tag=$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")" >> $GITHUB_OUTPUT
+
          - name: Generate SBOM (${{ matrix.target }} / ${{ matrix.format }})
            uses: anchore/sbom-action@v0
            with:
-              image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.target }}
+              image: ${{ steps.image-ref.outputs.tag }}
               format: ${{ matrix.format }}
               output-file: sbom-${{ matrix.target }}.${{ matrix.format == 'spdx-json' && 'spdx.json' || 'cdx.json' }}
               dependency-snapshot: true
@@ -250,7 +387,7 @@ jobs:
            id: image-digest
            run: |
               DIGEST=$(docker buildx imagetools inspect \
-                ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.target }} \
+                "${{ steps.image-ref.outputs.tag }}" \
                 --format '{{json .}}' | jq -r '.manifest.digest')
               echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
 
@@ -269,10 +406,10 @@ jobs:
                 --predicate ${SBOM_FILE} \
                 ${IMAGE}
 
-   # Job 3: Update image documentation
+   # Job 4: Update image documentation
    update-readme:
       runs-on: ubuntu-latest
-      needs: build
+      needs: merge
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
       steps:
