@@ -33,9 +33,39 @@ concurrency:
    cancel-in-progress: true
 
 jobs:
+   # Job 0: Lightweight PR check — Trivy misconfiguration scan only
+   pr-check:
+      runs-on: ubuntu-latest
+      if: github.event_name == 'pull_request'
+      permissions:
+         contents: read
+         security-events: write
+
+      steps:
+         - name: Checkout repository
+           uses: actions/checkout@v4
+
+         - name: Scan Containerfile for misconfigurations
+           uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # v0.34.0
+           with:
+              scan-type: "config"
+              scan-ref: "."
+              format: "sarif"
+              output: "trivy-results.sarif"
+              severity: "CRITICAL,HIGH"
+              ignore-unfixed: true
+
+         - name: Upload Trivy results to GitHub Security
+           if: always()
+           uses: github/codeql-action/upload-sarif@v4
+           with:
+              sarif_file: "trivy-results.sarif"
+              category: "dockerfile-config"
+
    # Job 1: Build and test the Docker image
    build:
       runs-on: ubuntu-latest
+      if: github.event_name != 'pull_request'
       timeout-minutes: 120
       permissions:
          contents: write
@@ -105,13 +135,16 @@ jobs:
               cache-from: |
                  type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.target }}
                  type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ matrix.target }}
-              cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.target }},mode=max
+              cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}/{1}:buildcache-{2},mode=max', env.REGISTRY, env.IMAGE_NAME, matrix.target) || '' }}
               build-args: |
                  BUILD_JOBS=${{ env.BUILD_JOBS }}
                  BUILDKIT_INLINE_CACHE=1
 
          - name: Sign Docker image with Cosign
-           if: github.event_name != 'pull_request' && (github.event.inputs.push_image != 'false')
+           if: >-
+              github.event_name != 'pull_request' &&
+              github.event.inputs.push_image != 'false' &&
+              steps.build-and-push.outputs.digest != ''
            env:
               DIGEST: ${{ steps.build-and-push.outputs.digest }}
               TAGS: ${{ steps.meta.outputs.tags }}
@@ -122,7 +155,7 @@ jobs:
               done
               cosign sign --yes ${images}
               cosign verify ${images} \
-                --certificate-identity=https://github.com/bruce-mig/cpp-devcontainers/.github/workflows/build-push.yaml@refs/heads/main \
+                --certificate-identity=https://github.com/bruce-mig/cpp-devcontainers/.github/workflows/build-push.yaml@${{ github.ref }} \
                 --certificate-oidc-issuer=https://token.actions.githubusercontent.com
 
          - name: Test image
@@ -162,18 +195,6 @@ jobs:
               output: "trivy-results.sarif"
               severity: "CRITICAL,HIGH"
               limit-severities-for-sarif: true
-
-         # On PR: scan Containerfile for misconfigurations
-         - name: Scan Containerfile for misconfigurations (PR)
-           if: github.event_name == 'pull_request'
-           uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284 # v0.34.0
-           with:
-              scan-type: "config"
-              ignore-unfixed: true
-              scan-ref: "."
-              format: "sarif"
-              output: "trivy-results.sarif"
-              severity: "CRITICAL,HIGH"
 
          - name: Upload Trivy results to GitHub Security
            if: >-
