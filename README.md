@@ -487,6 +487,8 @@ Set these at `https://github.com/bmigeri/devcon-cpp/settings/secrets/actions`.
 
 **SLSA provenance and SBOM**: Every published image manifest includes a SLSA provenance attestation and a Docker-native SBOM attestation. Syft generates authoritative SBOMs in SPDX-JSON and CycloneDX-JSON formats.
 
+**Verifying signatures and SBOMs**: Published images can be independently verified using `cosign` without trusting this repository. See [VERIFICATION.md](VERIFICATION.md) for step-by-step instructions covering signature verification, SBOM attestation checks, and cross-checking downloaded SBOM artifacts against the attested payload.
+
 **Dev Container security options**: The Dev Container configuration adds `SYS_PTRACE` and disables seccomp/apparmor confinement. This is required for debuggers (lldb, gdb) to attach to processes. These options apply only to the local development container — never to the base images themselves.
 
 ---
@@ -652,6 +654,7 @@ devcon-cpp/
 ## Related resources
 
 - [Docker Hub: bmigeri/devcon-cpp](https://hub.docker.com/r/bmigeri/devcon-cpp)
+- [Verifying image signatures and SBOMs](VERIFICATION.md)
 - [VS Code Dev Containers documentation](https://code.visualstudio.com/docs/devcontainers/containers)
 - [gRPC C++ quick start](https://grpc.io/docs/languages/cpp/quickstart/)
 - [GoogleTest primer](https://google.github.io/googletest/primer.html)

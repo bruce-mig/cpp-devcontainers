@@ -13,6 +13,7 @@ What is verified:
 - **cosign** — install via `brew install cosign`, `go install github.com/sigstore/cosign/v2/cmd/cosign@latest`, or download from [GitHub releases](https://github.com/sigstore/cosign/releases)
 - **Docker CLI** — to pull image digests
 - **jq** — to extract the digest from `docker buildx imagetools` output
+- **gh** (GitHub CLI) — to download SBOM artifacts from CI runs; install via `brew install gh` or from [GitHub releases](https://github.com/cli/cli/releases)
 
 ---
 
@@ -81,6 +82,69 @@ cosign verify-attestation \
   docker.io/<DOCKER_USERNAME>/devcon-cpp@<DIGEST> \
   | jq -r '.payload | @base64d | fromjson | .predicate'
 ```
+
+---
+
+## Step 5: Verify a Downloaded SBOM Artifact
+
+The CI workflow uploads SBOMs as GitHub Actions artifacts in addition to attaching them as cosign attestations. You can download these files directly and cross-check them against the attested payload to confirm the artifact has not been tampered with after the CI run.
+
+### 5a — Download the artifact using `gh`
+
+Artifact names follow the pattern `sbom-{target}-{format}`:
+
+| Artifact name | Downloaded file |
+|---|---|
+| `sbom-runtime-spdx-json` | `sbom-runtime.spdx.json` |
+| `sbom-runtime-cyclonedx-json` | `sbom-runtime.cdx.json` |
+| `sbom-development-spdx-json` | `sbom-development.spdx.json` |
+| `sbom-development-cyclonedx-json` | `sbom-development.cdx.json` |
+
+The same naming applies to `-slim` variants.
+
+```bash
+# Find the run ID for the workflow that produced the image
+gh run list --repo bruce-mig/cpp-devcontainers --workflow build-push.yaml --limit 5
+
+# Download the SBOM artifacts
+gh run download <RUN_ID> --repo bruce-mig/cpp-devcontainers \
+  --name sbom-runtime-spdx-json --dir ./sbom-artifacts
+
+gh run download <RUN_ID> --repo bruce-mig/cpp-devcontainers \
+  --name sbom-runtime-cyclonedx-json --dir ./sbom-artifacts
+```
+
+### 5b — Cross-check against the cosign attestation
+
+Extract the predicate from the attested SBOM and diff it against the downloaded file to confirm they are identical.
+
+**SPDX:**
+
+```bash
+cosign verify-attestation \
+  --certificate-identity=https://github.com/bruce-mig/cpp-devcontainers/.github/workflows/build-push.yaml@refs/heads/main \
+  --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+  --type spdxjson \
+  docker.io/<DOCKER_USERNAME>/devcon-cpp@<DIGEST> \
+  | jq -r '.payload | @base64d | fromjson | .predicate' > attested.spdx.json
+
+diff attested.spdx.json ./sbom-artifacts/sbom-runtime.spdx.json && echo "Match: SBOM is authentic"
+```
+
+**CycloneDX:**
+
+```bash
+cosign verify-attestation \
+  --certificate-identity=https://github.com/bruce-mig/cpp-devcontainers/.github/workflows/build-push.yaml@refs/heads/main \
+  --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+  --type cyclonedx \
+  docker.io/<DOCKER_USERNAME>/devcon-cpp@<DIGEST> \
+  | jq -r '.payload | @base64d | fromjson | .predicate' > attested.cdx.json
+
+diff attested.cdx.json ./sbom-artifacts/sbom-runtime.cdx.json && echo "Match: SBOM is authentic"
+```
+
+A clean `diff` (exit 0) confirms the artifact matches what was signed and recorded in Rekor.
 
 ---
 
