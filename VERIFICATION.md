@@ -128,7 +128,7 @@ cosign verify-attestation \
   docker.io/<DOCKER_USERNAME>/devcon-cpp@<DIGEST> \
   | jq -r '.payload | @base64d | fromjson | .predicate' > attested.spdx.json
 
-diff attested.spdx.json ./sbom-artifacts/sbom-runtime.spdx.json && echo "Match: SBOM is authentic"
+diff <(jq -S . attested.spdx.json) <(jq -S . ./sbom-artifacts/sbom-runtime.spdx.json) && echo "Match: SBOM is authentic"
 ```
 
 **CycloneDX:**
@@ -141,7 +141,7 @@ cosign verify-attestation \
   docker.io/<DOCKER_USERNAME>/devcon-cpp@<DIGEST> \
   | jq -r '.payload | @base64d | fromjson | .predicate' > attested.cdx.json
 
-diff attested.cdx.json ./sbom-artifacts/sbom-runtime.cdx.json && echo "Match: SBOM is authentic"
+diff <(jq -S . attested.cdx.json) <(jq -S . ./sbom-artifacts/sbom-runtime.cdx.json) && echo "Match: SBOM is authentic"
 ```
 
 A clean `diff` (exit 0) confirms the artifact matches what was signed and recorded in Rekor.
