@@ -402,10 +402,14 @@ jobs:
                 SBOM_FILE="sbom-${{ matrix.target }}.cdx.json"
               fi
               IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.image-digest.outputs.digest }}"
-              cosign attest --yes \
-                --type ${PRED_TYPE} \
-                --predicate ${SBOM_FILE} \
-                ${IMAGE}
+              for attempt in 1 2 3; do
+                cosign attest --yes \
+                  --type ${PRED_TYPE} \
+                  --predicate ${SBOM_FILE} \
+                  ${IMAGE} && break
+                echo "Attempt ${attempt} failed. Retrying in 15s..."
+                sleep 15
+              done
 
    # Job 4: Update image documentation
    update-readme:
